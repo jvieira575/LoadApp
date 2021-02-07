@@ -9,8 +9,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
 
@@ -38,10 +40,16 @@ class MainActivity : AppCompatActivity() {
         // Register the click listener
         custom_button.setOnClickListener {
 
-            // Temporary. Just testing navigation and detail activity
-            val detailActivityIntent = DetailActivity.newIntent(this, INTENT_FILE_NAME_VALUE, INTENT_DOWNLOAD_STATUS_VALUE)
-            startActivity(detailActivityIntent)
+            when (radio_button_group.checkedRadioButtonId){
+                R.id.glide_radio_button -> download(URL_GLIDE_REPO)
+                R.id.load_app_radio_button -> download(URL_LOAD_APP_REPO)
+                R.id.retrofit_radio_button -> download(URL_RETROFIT_REPO)
+                else -> Toast.makeText(this, TOAST_MESSAGE, Toast.LENGTH_SHORT).show()
+            }
         }
+
+        // Get an instance of the notification manager
+        notificationManager = ContextCompat.getSystemService(applicationContext, NotificationManager::class.java) as NotificationManager
     }
 
     /**
@@ -50,15 +58,51 @@ class MainActivity : AppCompatActivity() {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+
+            // Ensure we have an ID
+            if (id != null && downloadID == id) {
+                val downloadManager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                val query = DownloadManager.Query().setFilterById(id)
+                val cursor = downloadManager.query(query)
+
+                if (cursor.moveToFirst()) {
+
+                    // Get the download status and translate it to a download status for the detail activity to display
+                    val downloadStatusCode = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+                    val downloadStatus = if (downloadStatusCode == DownloadManager.STATUS_SUCCESSFUL) "Success" else "Fail"
+
+                    // TODO: Temporarily navigating to detail activity directly but this should trigger a notification
+                    val detailActivityIntent = context?.let {
+                        DetailActivity.newIntent(it, getSelectedDisplayFileName(), downloadStatus)
+                    }
+                    startActivity(detailActivityIntent)
+                }
+
+                // Close the cursor
+                cursor.close()
+            }
+        }
+    }
+
+    /**
+     * Retrieves the selected display file name.
+     */
+    private fun getSelectedDisplayFileName() : String {
+        return when (radio_button_group.checkedRadioButtonId) {
+            R.id.glide_radio_button -> getString(R.string.glide_radio_button_text)
+            R.id.load_app_radio_button -> getString(R.string.load_app_radio_button_text)
+            R.id.retrofit_radio_button -> getString(R.string.retrofit_radio_button_text)
+            else -> "Unknown"
         }
     }
 
     /**
      * Function that initiates a download of the selected GIT repository.
      */
-    private fun download() {
-        val request =
-            DownloadManager.Request(Uri.parse(URL_LOAD_APP_REPO))
+    private fun download(url : String) {
+
+        // TODO: set custom button status to loading, and disable click event of custom button
+        val request = DownloadManager.Request(Uri.parse(url))
                 .setTitle(getString(R.string.app_name))
                 .setDescription(getString(R.string.app_description))
                 .setRequiresCharging(false)
@@ -74,14 +118,26 @@ class MainActivity : AppCompatActivity() {
      * Companion object that contains constants for use in the activity.
      */
     companion object {
-        private const val TOAST_MESSAGE = "Please select the file to download"
-        private const val URL_GLIDE_REPO = "https://github.com/bumptech/glide/archive/master.zip"
-        private const val URL_LOAD_APP_REPO = "https://github.com/udacity/nd940-c3-advanced-android-programming-project-starter/archive/master.zip"
-        private const val URL_RETROFIT_REPO = "https://github.com/square/retrofit/archive/master.zip"
-        private const val CHANNEL_ID = "channelId"
 
-        // Temporary values to test detail screen
-        private const val INTENT_FILE_NAME_VALUE = "https://github.com/udacity/nd940-c3-advanced-android-programming-project-starter/archive/master.zip"
-        private const val INTENT_DOWNLOAD_STATUS_VALUE = "Success"
+        // General
+        private const val TOAST_MESSAGE = "Please select the file to download"
+
+        // Repo URLs
+        private const val URL_GLIDE_REPO = "https://github.com/bumptech/glide/archive/master.zip"
+        private const val URL_LOAD_APP_REPO =
+            "https://github.com/udacity/nd940-c3-advanced-android-programming-project-starter/archive/master.zip"
+        private const val URL_RETROFIT_REPO =
+            "https://github.com/square/retrofit/archive/master.zip"
+
+        // Notifications
+        private const val CHANNEL_ID = "channelId"
+    }
+
+    /**
+     * Lifecycle callback. Unregister our receiver.
+     */
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(receiver)
     }
 }
