@@ -3,6 +3,7 @@ package com.udacity
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -44,15 +45,25 @@ class DetailActivity : AppCompatActivity() {
         file_name_text_view.text = fileName
         download_status_text_view.text = downloadStatus
 
+        // Set the text colour to red if failed
+        if (DOWNLOAD_FAILURE_STATUS == downloadStatus) {
+            download_status_text_view.setTextColor(Color.RED)
+        }
+
         // Register button listener to navigate to Main Activity
         ok_button.setOnClickListener {
-            val intent = Intent(applicationContext, MainActivity::class.java)
-            startActivity(intent)
-            finish()
+            onBackPressed()
         }
 
         // Cancel the notifications
         val notificationManager = ContextCompat.getSystemService(applicationContext, NotificationManager::class.java) as NotificationManager
         notificationManager.cancelAll()
+    }
+
+    override fun onBackPressed() {
+        super.onBackPressed()
+        val intent = Intent(applicationContext, MainActivity::class.java)
+        startActivity(intent)
+        finish()
     }
 }

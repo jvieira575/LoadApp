@@ -24,6 +24,8 @@ import kotlinx.android.synthetic.main.content_main.*
  * Once a repo is selected, and the download button is clicked, the button will animate and a download
  * will commence. A notification will appear allowing the user to click to the detail view.
  */
+const val DOWNLOAD_SUCCESS_STATUS = "Success"
+const val DOWNLOAD_FAILURE_STATUS = "Fail"
 class MainActivity : AppCompatActivity() {
 
     private var downloadID: Long = 0
@@ -88,6 +90,7 @@ class MainActivity : AppCompatActivity() {
 
             // Ensure we have an ID
             if (id != null && downloadID == id) {
+
                 val downloadManager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
                 val query = DownloadManager.Query().setFilterById(id)
                 val cursor = downloadManager.query(query)
@@ -98,11 +101,15 @@ class MainActivity : AppCompatActivity() {
                     val downloadStatusCode =
                         cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
                     val downloadStatus =
-                        if (downloadStatusCode == DownloadManager.STATUS_SUCCESSFUL) "Success" else "Fail"
+                        if (downloadStatusCode == DownloadManager.STATUS_SUCCESSFUL) DOWNLOAD_SUCCESS_STATUS else DOWNLOAD_FAILURE_STATUS
                     val fileName = getSelectedDisplayFileName()
 
                     // Send a notification
                     notificationManager.sendNotification(fileName, downloadStatus)
+
+                    // Safe to stop the animation
+                    custom_button.setState(ButtonState.Completed)
+                    custom_button.isClickable = true
                 }
 
                 // Close the cursor
@@ -128,7 +135,10 @@ class MainActivity : AppCompatActivity() {
      */
     private fun download(url: String) {
 
-        // TODO: set custom button status to loading, and disable click event of custom button
+        // Set the state of button to loading and disable button clicks until we're finished loading
+        custom_button.setState(ButtonState.Loading)
+        custom_button.isClickable = false
+
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle(getString(R.string.app_name))
             .setDescription(getString(R.string.app_description))
@@ -161,7 +171,6 @@ class MainActivity : AppCompatActivity() {
         private const val CHANNEL_NAME = "Load App Channel"
         private const val CHANNEL_DESCRIPTION = "The Load App Channel"
         private const val NOTIFICATION_ID = 99
-
     }
 
     /**
