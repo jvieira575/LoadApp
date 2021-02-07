@@ -1,9 +1,11 @@
 package com.udacity
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import kotlinx.android.synthetic.main.activity_detail.*
 import kotlinx.android.synthetic.main.content_detail.*
 
@@ -18,7 +20,7 @@ class DetailActivity : AppCompatActivity() {
         private const val INTENT_FILE_NAME_KEY = "INTENT_FILE_NAME_KEY"
         private const val INTENT_DOWNLOAD_STATUS_KEY = "INTENT_DOWNLOAD_STATUS_KEY"
 
-        fun newIntent(context: Context, fileName :String, downloadStatus : String): Intent {
+        fun newIntent(context: Context, fileName: String, downloadStatus: String): Intent {
 
             val intent = Intent(context, DetailActivity::class.java)
             intent.putExtra(INTENT_FILE_NAME_KEY, fileName)
@@ -48,5 +50,9 @@ class DetailActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         }
+
+        // Cancel the notifications
+        val notificationManager = ContextCompat.getSystemService(applicationContext, NotificationManager::class.java) as NotificationManager
+        notificationManager.cancelAll()
     }
 }

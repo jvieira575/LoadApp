@@ -1,13 +1,16 @@
 package com.udacity
 
 import android.app.DownloadManager
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -40,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         // Register the click listener
         custom_button.setOnClickListener {
 
-            when (radio_button_group.checkedRadioButtonId){
+            when (radio_button_group.checkedRadioButtonId) {
                 R.id.glide_radio_button -> download(URL_GLIDE_REPO)
                 R.id.load_app_radio_button -> download(URL_LOAD_APP_REPO)
                 R.id.retrofit_radio_button -> download(URL_RETROFIT_REPO)
@@ -49,7 +52,31 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Get an instance of the notification manager
-        notificationManager = ContextCompat.getSystemService(applicationContext, NotificationManager::class.java) as NotificationManager
+        notificationManager = ContextCompat.getSystemService(
+            applicationContext,
+            NotificationManager::class.java
+        ) as NotificationManager
+        createNotificationChannel()
+    }
+
+    /**
+     * Creates a notification channel for the application.
+     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationChannel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+
+            notificationChannel.description = CHANNEL_DESCRIPTION
+            notificationChannel.enableLights(true)
+            notificationChannel.lightColor = Color.BLUE
+            notificationChannel.enableVibration(true)
+
+            notificationManager.createNotificationChannel(notificationChannel)
+        }
     }
 
     /**
@@ -68,14 +95,14 @@ class MainActivity : AppCompatActivity() {
                 if (cursor.moveToFirst()) {
 
                     // Get the download status and translate it to a download status for the detail activity to display
-                    val downloadStatusCode = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
-                    val downloadStatus = if (downloadStatusCode == DownloadManager.STATUS_SUCCESSFUL) "Success" else "Fail"
+                    val downloadStatusCode =
+                        cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+                    val downloadStatus =
+                        if (downloadStatusCode == DownloadManager.STATUS_SUCCESSFUL) "Success" else "Fail"
+                    val fileName = getSelectedDisplayFileName()
 
-                    // TODO: Temporarily navigating to detail activity directly but this should trigger a notification
-                    val detailActivityIntent = context?.let {
-                        DetailActivity.newIntent(it, getSelectedDisplayFileName(), downloadStatus)
-                    }
-                    startActivity(detailActivityIntent)
+                    // Send a notification
+                    notificationManager.sendNotification(fileName, downloadStatus)
                 }
 
                 // Close the cursor
@@ -87,7 +114,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * Retrieves the selected display file name.
      */
-    private fun getSelectedDisplayFileName() : String {
+    private fun getSelectedDisplayFileName(): String {
         return when (radio_button_group.checkedRadioButtonId) {
             R.id.glide_radio_button -> getString(R.string.glide_radio_button_text)
             R.id.load_app_radio_button -> getString(R.string.load_app_radio_button_text)
@@ -99,15 +126,15 @@ class MainActivity : AppCompatActivity() {
     /**
      * Function that initiates a download of the selected GIT repository.
      */
-    private fun download(url : String) {
+    private fun download(url: String) {
 
         // TODO: set custom button status to loading, and disable click event of custom button
         val request = DownloadManager.Request(Uri.parse(url))
-                .setTitle(getString(R.string.app_name))
-                .setDescription(getString(R.string.app_description))
-                .setRequiresCharging(false)
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
+            .setTitle(getString(R.string.app_name))
+            .setDescription(getString(R.string.app_description))
+            .setRequiresCharging(false)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
 
         val downloadManager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
         downloadID =
@@ -131,6 +158,50 @@ class MainActivity : AppCompatActivity() {
 
         // Notifications
         private const val CHANNEL_ID = "channelId"
+        private const val CHANNEL_NAME = "Load App Channel"
+        private const val CHANNEL_DESCRIPTION = "The Load App Channel"
+        private const val NOTIFICATION_ID = 99
+
+    }
+
+    /**
+     * Extension function that sends notifications when a file is downloaded.
+     */
+    fun NotificationManager.sendNotification(
+        fileName: String,
+        downloadStatus: String
+    ) {
+
+        // Build the pending intent for the notification which will start the DetailActivity
+        pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            0,
+            DetailActivity.newIntent(applicationContext, fileName, downloadStatus),
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Build the action
+        action = NotificationCompat.Action.Builder(
+            R.drawable.baseline_archive_white_18,
+            "Check the status",
+            pendingIntent
+        ).build()
+
+        // Build the actual notification
+        val builder = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(R.drawable.baseline_archive_white_18)
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_description))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(getString(R.string.notification_description))
+            )
+            .setChannelId(CHANNEL_ID)
+            .addAction(action)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        // Sends the notification
+        notify(NOTIFICATION_ID, builder.build())
     }
 
     /**
